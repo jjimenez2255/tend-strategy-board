@@ -756,17 +756,69 @@ function loadFromStorage() {
 }
 
 function loadDefaultContent() {
-  createCard(80, 100, 'card', { color: 'slate', label: 'TEND', title: 'What We Are', content: 'Managed AI operators for business workflows. We install AI that runs your operations — and we manage it for you.' });
-  createCard(420, 100, 'card', { label: 'PROBLEM', title: 'Why Businesses Need Us', content: '• 3+ hours/day on email, scheduling<br>• Leads going cold<br>• Can\'t afford more staff<br>• Tried AI tools — didn\'t stick' });
-  createCard(80, 340, 'card', { color: 'green', label: 'PRICING', title: 'Deal Structure', content: '<strong>$11K</strong> minimum<br><br>• $5,000 setup<br>• $2,000/month<br>• 3-month minimum' });
-  createCard(420, 340, 'card', { label: 'TARGET', title: 'Ideal Customer', content: '• $5M–$100M revenue<br>• Founder or Head of Ops<br>• Clear operational pain<br>• $11K isn\'t a big decision' });
-  createCard(760, 100, 'sticky', { label: '🦷', title: 'Dental', content: 'Confirmations, no-shows, new patient follow-up' });
-  createCard(980, 100, 'sticky', { color: 'pink', label: '🏠', title: 'Real Estate', content: 'Lead response time, qualification' });
-  createCard(760, 280, 'sticky', { color: 'blue', label: '🔧', title: 'HVAC/Trades', content: 'Missed calls, dispatch, scheduling' });
-  createCard(980, 280, 'sticky', { color: 'purple', label: '⚖️', title: 'Legal', content: 'Intake automation, follow-ups' });
-  createCard(80, 580, 'card', { color: 'lilac', label: 'PITCH', title: '30-Second Pitch', content: '"Most businesses know AI can help, but don\'t have time to figure it out. Tend is different. We identify your highest-value workflow and build a real AI system. $5K to set up, $2K/month. ROI in 30 days."' });
-  createCard(500, 580, 'card', { color: 'coral', label: 'OBJECTION', title: '"Why not ChatGPT?"', content: 'ChatGPT doesn\'t connect to your CRM, respond at 2am, or know your escalation rules. We build the system that does.' });
-  createCard(840, 580, 'card', { color: 'coral', label: 'OBJECTION', title: '"Too expensive"', content: 'A full-time admin is $40K+ with benefits. Tend is $24K/year, works 24/7, never misses a lead.' });
+  // ===== CORE SECTION (Row 1) =====
+  createCard(80, 80, 'card', { color: 'slate', label: 'TEND', title: 'What We Are', content: 'Managed AI operators for business workflows. We install AI that runs your operations — and we manage it for you.' });
+  createCard(420, 80, 'card', { label: 'PROBLEM', title: 'Why Businesses Need Us', content: '• 3+ hours/day on email, scheduling<br>• Leads going cold — slow response<br>• Can\'t afford or trust more staff<br>• Tried AI tools — didn\'t stick' });
+  createCard(760, 80, 'card', { label: 'POSITION', title: 'The Middle Ground', content: 'More operational than chatbot shops. More accessible than enterprise AI firms. Managed, not abandoned.' });
+  createCard(1100, 80, 'card', { color: 'lilac', label: 'INSIGHT', title: 'The Real Gap', content: 'It\'s not technology. It\'s implementation. Businesses don\'t need another tool — they need someone to make AI work inside their operations.' });
+
+  // ===== SALES SECTION (Row 2) =====
+  createCard(80, 320, 'card', { color: 'green', label: 'PRICING', title: 'Deal Structure', content: '<strong style="font-size:24px">$11K</strong> minimum<br><br>• $5,000 setup fee<br>• $2,000/month retainer<br>• 3-month minimum<br>• Day 1 payment: $7,000' });
+  createCard(420, 320, 'card', { label: 'TARGET', title: 'Ideal Customer', content: '• $5M–$100M revenue<br>• Founder, owner, or Head of Ops<br>• Clear operational pain<br>• $11K isn\'t a big decision<br>• Already tried some automation' });
+  createCard(760, 320, 'card', { color: 'slate', label: 'MOAT', title: 'Why This Matters', content: 'Tend is the wedge. $11K entry → trust earned → $50K–$500K+ enterprise consulting via Kyros.' });
+
+  // ===== INDUSTRIES (Row 3) =====
+  createCard(80, 560, 'sticky', { label: '🦷 DENTAL', title: 'Pain Points', content: 'Confirmations, no-shows, new patient follow-up' });
+  createCard(300, 560, 'sticky', { color: 'pink', label: '🏠 REAL ESTATE', title: 'Pain Points', content: 'Lead response time, qualification while at showings' });
+  createCard(520, 560, 'sticky', { color: 'blue', label: '🔧 HVAC/TRADES', title: 'Pain Points', content: 'Missed calls = lost jobs, dispatch, scheduling' });
+  createCard(740, 560, 'sticky', { color: 'purple', label: '⚖️ LEGAL', title: 'Pain Points', content: 'Intake automation, follow-ups, billable time waste' });
+
+  // ===== SCRIPTS SECTION (Row 4) =====
+  createCard(80, 780, 'card', { color: 'lilac', label: '30-SEC PITCH', title: 'Universal Pitch', content: '"Most businesses know AI can help, but don\'t have time to figure it out. Tend is different. We identify your highest-value workflow — usually lead response, scheduling, or follow-ups — and build a real AI system. Not a chatbot. An actual operator. $5K to set up, $2K/month. ROI in 30 days."' });
+  createCard(480, 780, 'card', { label: 'DISCOVERY', title: 'Opening Questions', content: '• "Walk me through what happens when a new lead comes in."<br>• "How long until they hear from someone?"<br>• "What\'s falling through the cracks?"<br>• "What\'s your team spending too much time on?"<br>• "Have you tried automation before? What didn\'t work?"' });
+  createCard(880, 780, 'card', { label: 'TRIAL CLOSE', title: 'Moving to Action', content: '"Based on what you\'ve told me, it sounds like [lead response / scheduling / follow-up] is costing you the most time. If we could get that running automatically in 2 weeks, what would that free you up to do?"' });
+  createCard(1280, 780, 'card', { label: 'NEXT STEP', title: 'Booking the Call', content: '"Let\'s book a 15-minute discovery call. I\'ll ask a few questions about your workflow, and we\'ll see if there\'s a fit. If there is, we can have you live within 2 weeks."' });
+  createCard(1280, 1020, 'card', { label: 'URGENCY', title: 'Creating Momentum', content: '"We\'re only taking on a handful of new clients this month — we want to make sure everyone gets full attention during onboarding. If the timing works, let\'s lock in a slot."' });
+
+  // ===== OBJECTIONS (Row 5) =====
+  createCard(80, 1060, 'card', { color: 'coral', label: 'OBJECTION', title: '"Why not ChatGPT?"', content: 'You can. But having a tool isn\'t the same as having a system. ChatGPT doesn\'t connect to your CRM, respond at 2am, or know your escalation rules. We build the system that does.' });
+  createCard(420, 1060, 'card', { color: 'coral', label: 'OBJECTION', title: '"Too expensive"', content: 'Compare it to hiring. A full-time admin is $40K+ with benefits, 40 hours/week, calls in sick. Tend is $24K/year, works 24/7, never misses a lead. The math works.' });
+  createCard(760, 1060, 'card', { color: 'coral', label: 'OBJECTION', title: '"What if it makes mistakes?"', content: 'It will, at first. That\'s why we have human-in-the-loop checkpoints for anything high-stakes. We monitor and tune constantly. Mistakes get caught fast.' });
+  createCard(1100, 1060, 'card', { color: 'coral', label: 'OBJECTION', title: '"I\'ve tried AI tools before"', content: 'Most AI tools are self-serve — you\'re on your own. We\'re the opposite. We build it, run it, fix it. You just see results.' });
+  createCard(80, 1300, 'card', { color: 'coral', label: 'OBJECTION', title: '"Is my data safe?"', content: 'Scoped permissions — the AI only touches what it needs. We don\'t train on your data. Actions are logged and auditable. You own everything.' });
+
+  // ===== CUSTOMER JOURNEY (Row 6) =====
+  createCard(80, 1520, 'sticky', { color: 'slate', label: '01', title: 'See Ad', content: 'Google, Meta, Billboard' });
+  createCard(260, 1520, 'sticky', { label: '02', title: 'Visit Site', content: 'tend.team' });
+  createCard(440, 1520, 'sticky', { color: 'purple', label: '03', title: 'Book Call', content: 'Cal.com intake' });
+  createCard(620, 1520, 'sticky', { color: 'pink', label: '04', title: 'Discovery', content: '15-min call' });
+  createCard(800, 1520, 'sticky', { label: '05', title: 'Proposal', content: '$7K day one' });
+  createCard(980, 1520, 'sticky', { color: 'green', label: '06', title: 'Deploy', content: '2 weeks live' });
+  createCard(1160, 1520, 'sticky', { color: 'purple', label: '07', title: 'Expand', content: '→ Kyros consulting' });
+
+  // ===== EXECUTION (Row 7) =====
+  createCard(80, 1740, 'card', { color: 'green', label: 'PROCESS', title: 'Our Delivery', content: '01 Discovery — Find the workflow<br>02 Design — Map permissions & rules<br>03 Deploy — Build & launch<br>04 Run — Monitor & tune<br>05 Expand — Add more agents' });
+  createCard(420, 1740, 'card', { color: 'slate', label: 'TIMELINE', title: 'Speed', content: '<strong style="font-size:24px">2 weeks</strong><br>Discovery to Live<br><br>First month is calibration. Stable by month 1 end.' });
+  createCard(760, 1740, 'card', { color: 'lilac', label: 'CONTROLS', title: 'Trust Framework', content: '• Scoped permissions<br>• Approval gates<br>• Human-in-the-loop<br>• Full audit logs<br>• Managed deployment' });
+  createCard(1100, 1740, 'card', { label: 'USE CASES', title: 'Entry Workflows', content: '• Lead qualification & response<br>• Meeting prep & follow-up<br>• Support triage<br>• CRM automation<br>• Internal ops' });
+
+  // ===== GTM (Row 8) =====
+  createCard(80, 1980, 'card', { color: 'lilac', label: 'BUDGET', title: 'Scaling Plan', content: '<strong style="font-size:24px">$5K/day</strong> by Month 3<br><br>Week 1-2 → $500/day<br>Week 3-4 → $1,500/day<br>Month 2 → $3,000/day' });
+  createCard(420, 1980, 'card', { color: 'green', label: 'CHANNELS', title: 'Mix', content: '• Google Ads — 40%<br>• Meta — 30%<br>• LinkedIn — 20%<br>• YouTube — 10%' });
+  createCard(760, 1980, 'card', { color: 'coral', label: 'LOCAL', title: 'DFW Billboards', content: 'I-35E, I-635, US-75, DFW Airport corridor<br><br>250K+ daily impressions' });
+  createCard(1100, 1980, 'card', { color: 'slate', label: 'EVENTS', title: 'Meetups', content: '• Dallas Entrepreneurs<br>• Plano Chamber<br>• DFW Tech Happy Hours' });
+
+  // ===== STATUS (Row 9) =====
+  createCard(80, 2220, 'card', { color: 'green', label: 'LIVE NOW', title: 'What\'s Running', content: '✓ tend.team<br>✓ Google Ads ($50/day)<br>✓ Cal.com booking<br>✓ GA4 analytics<br>✓ Team dashboard' });
+  createCard(420, 2220, 'card', { color: 'coral', label: 'GAP', title: 'Conversion Issue', content: '9.6% click booking link but 0% complete.<br><br><strong>Fix:</strong> Cal.com friction? Trust gap? Landing page clarity?' });
+  createCard(760, 2220, 'card', { color: 'slate', label: 'TEAM', title: 'Who\'s On This', content: '• Thomas — Lead<br>• jj — Marketing & GTM<br>• Jakeh — Product & UX<br>• Will — Support' });
+  createCard(1100, 2220, 'card', { color: 'lilac', label: 'THIS WEEK', title: 'Priorities', content: '• Fix booking conversion<br>• Launch Meta ads<br>• Finalize headline<br>• First billboard design' });
+
+  // ===== INDUSTRY PLAYBOOKS (Extended - Row 10+) =====
+  createCard(80, 2500, 'card', { color: 'green', label: '🦷 DENTAL SCRIPT', title: 'Selling to Dental', content: '<strong>Opening:</strong> "How many hours a day does your front desk spend on confirmation calls and rescheduling?"<br><br><strong>Pitch:</strong> "We can cut that to near-zero. Our AI handles confirmations, responds to new patient inquiries in under 60 seconds, and fills cancelled slots automatically."' });
+  createCard(480, 2500, 'card', { color: 'pink', label: '🏠 REAL ESTATE SCRIPT', title: 'Selling to Realtors', content: '<strong>Opening:</strong> "When a new lead comes in from Zillow at 2pm and you\'re at a showing — how long until they hear from someone?"<br><br><strong>Pitch:</strong> "We make that 60 seconds. Our AI responds instantly, qualifies interest, and books the call with you."' });
+  createCard(880, 2500, 'card', { color: 'blue', label: '🔧 HVAC SCRIPT', title: 'Selling to Trades', content: '<strong>Opening:</strong> "How many calls go to voicemail when your team is on a job?"<br><br><strong>Pitch:</strong> "Every missed call is a lost job. We answer every call, qualify urgency, book the appointment, and dispatch to your team."' });
+  createCard(1280, 2500, 'card', { color: 'purple', label: '⚖️ LEGAL SCRIPT', title: 'Selling to Law Firms', content: '<strong>Opening:</strong> "How much of your team\'s time goes to intake calls and follow-up emails instead of billable work?"<br><br><strong>Pitch:</strong> "We automate the front door. New inquiries get qualified, consultations scheduled, follow-ups happen automatically."' });
 }
 
 init();
