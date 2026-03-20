@@ -53,8 +53,18 @@ html, body {
 }
 
 .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-.card.selected { border-color: var(--selection); }
+.card.selected { border-color: var(--selection); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
 .card.dragging { cursor: grabbing; opacity: 0.9; z-index: 1000; }
+
+/* Selection box */
+#selection-box {
+  position: absolute;
+  border: 2px dashed var(--selection);
+  background: rgba(59, 130, 246, 0.1);
+  pointer-events: none;
+  display: none;
+  z-index: 999;
+}
 
 .card-label {
   font-size: 10px;
@@ -310,7 +320,9 @@ html, body {
   <button data-action="delete" class="danger">Delete</button>
 </div>
 
-<div id="canvas"></div>
+<div id="canvas">
+  <div id="selection-box"></div>
+</div>
 
 <div id="zoom-controls">
   <button id="zoom-out">−</button>
@@ -325,9 +337,10 @@ html, body {
   <kbd>S</kbd> Sticky &nbsp;
   <kbd>Del</kbd> Delete &nbsp;
   <kbd>⌘D</kbd> Duplicate &nbsp;
+  <kbd>⌘A</kbd> Select All &nbsp;
   <kbd>⌘S</kbd> Save &nbsp;
-  <kbd>Space+Drag</kbd> Pan &nbsp;
-  <kbd>⌘+Scroll</kbd> Zoom
+  <kbd>Shift+Click</kbd> Multi-select &nbsp;
+  <kbd>Drag</kbd> Box select
 </div>
 
 <script>
@@ -336,26 +349,29 @@ const toolbar = document.getElementById('toolbar');
 const contextMenu = document.getElementById('context-menu');
 const colorPicker = document.getElementById('color-picker');
 const zoomLevel = document.getElementById('zoom-level');
+const selectionBox = document.getElementById('selection-box');
 
 let mode = 'select';
 let scale = 1;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 3;
-let selectedCard = null;
+
+let selectedCards = [];
 let isDragging = false;
 let isPanning = false;
-let startX, startY, cardStartX, cardStartY;
+let isSelecting = false;
+let startX, startY;
+let dragStartPositions = [];
 let panStartX, panStartY, scrollStartX, scrollStartY;
+let selStartX, selStartY;
 let cardIdCounter = 0;
 
-// Initialize
 function init() {
   loadFromStorage();
   setupEventListeners();
 }
 
 function setupEventListeners() {
-  // Toolbar
   document.getElementById('btn-select').onclick = () => setMode('select');
   document.getElementById('btn-card').onclick = () => setMode('card');
   document.getElementById('btn-sticky').onclick = () => setMode('sticky');
@@ -363,56 +379,30 @@ function setupEventListeners() {
   document.getElementById('btn-color').onclick = (e) => toggleColorPicker(e);
   document.getElementById('btn-delete').onclick = deleteSelected;
   document.getElementById('btn-save').onclick = saveToStorage;
-  document.getElementById('btn-load').onclick = () => document.getElementById('file-input')?.click() || loadFromStorage();
+  document.getElementById('btn-load').onclick = () => loadFromStorage();
 
-  // Canvas click
   canvas.addEventListener('mousedown', onCanvasMouseDown);
-  canvas.addEventListener('mousemove', onCanvasMouseMove);
-  canvas.addEventListener('mouseup', onCanvasMouseUp);
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup', onMouseUp);
   canvas.addEventListener('contextmenu', onContextMenu);
-
-  // Keyboard
   document.addEventListener('keydown', onKeyDown);
+  document.addEventListener('keyup', onKeyUp);
 
-  // Color picker
   colorPicker.querySelectorAll('.color-btn').forEach(btn => {
     btn.onclick = () => applyColor(btn.dataset.color);
   });
 
-  // Context menu
   contextMenu.querySelectorAll('button').forEach(btn => {
-    btn.onclick = () => {
-      handleContextAction(btn.dataset.action);
-      contextMenu.style.display = 'none';
-    };
+    btn.onclick = () => { handleContextAction(btn.dataset.action); contextMenu.style.display = 'none'; };
   });
 
-  // Click outside to deselect
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.card') && !e.target.closest('#toolbar') && !e.target.closest('#context-menu') && !e.target.closest('#color-picker') && !e.target.closest('#zoom-controls')) {
-      deselectAll();
-      contextMenu.style.display = 'none';
-      colorPicker.classList.remove('show');
-    }
-  });
-
-  // Pan with space
-  document.addEventListener('keydown', (e) => { if (e.code === 'Space' && !e.target.isContentEditable) { e.preventDefault(); isPanning = true; document.body.style.cursor = 'grab'; }});
-  document.addEventListener('keyup', (e) => { if (e.code === 'Space') { isPanning = false; document.body.style.cursor = ''; }});
-
-  // Zoom controls
   document.getElementById('zoom-in').onclick = () => setZoom(scale + 0.1);
   document.getElementById('zoom-out').onclick = () => setZoom(scale - 0.1);
   document.getElementById('zoom-level').onclick = () => setZoom(1);
   document.getElementById('zoom-fit').onclick = zoomToFit;
 
-  // Mouse wheel zoom (Cmd/Ctrl + scroll)
   document.addEventListener('wheel', (e) => {
-    if (e.metaKey || e.ctrlKey) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      setZoom(scale + delta);
-    }
+    if (e.metaKey || e.ctrlKey) { e.preventDefault(); setZoom(scale + (e.deltaY > 0 ? -0.1 : 0.1)); }
   }, { passive: false });
 }
 
@@ -426,25 +416,13 @@ function setZoom(newScale) {
 function zoomToFit() {
   const cards = document.querySelectorAll('.card');
   if (cards.length === 0) { setZoom(1); return; }
-  
   let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
   cards.forEach(card => {
-    const x = parseInt(card.style.left) || 0;
-    const y = parseInt(card.style.top) || 0;
-    const w = card.offsetWidth;
-    const h = card.offsetHeight;
-    minX = Math.min(minX, x);
-    minY = Math.min(minY, y);
-    maxX = Math.max(maxX, x + w);
-    maxY = Math.max(maxY, y + h);
+    const x = parseInt(card.style.left) || 0, y = parseInt(card.style.top) || 0;
+    minX = Math.min(minX, x); minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + card.offsetWidth); maxY = Math.max(maxY, y + card.offsetHeight);
   });
-  
-  const contentWidth = maxX - minX + 100;
-  const contentHeight = maxY - minY + 100;
-  const scaleX = window.innerWidth / contentWidth;
-  const scaleY = window.innerHeight / contentHeight;
-  const newScale = Math.min(scaleX, scaleY, 1) * 0.9;
-  
+  const newScale = Math.min(window.innerWidth / (maxX - minX + 100), window.innerHeight / (maxY - minY + 100), 1) * 0.9;
   setZoom(newScale);
   window.scrollTo(minX * scale - 50, minY * scale - 50);
 }
@@ -470,10 +448,21 @@ function createCard(x, y, type = 'card', data = {}) {
   `;
   
   card.addEventListener('mousedown', onCardMouseDown);
-  card.addEventListener('dblclick', onCardDblClick);
-  
+  card.addEventListener('click', onCardClick);
   canvas.appendChild(card);
   return card;
+}
+
+function onCardClick(e) {
+  // Single click on editable = start editing
+  const editable = e.target.closest('[contenteditable]');
+  if (editable && !isDragging) {
+    editable.focus();
+    // Place cursor at click position
+    const selection = window.getSelection();
+    const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+    if (range) { selection.removeAllRanges(); selection.addRange(range); }
+  }
 }
 
 function onCardMouseDown(e) {
@@ -483,33 +472,36 @@ function onCardMouseDown(e) {
   if (!card) return;
   
   e.preventDefault();
-  selectCard(card);
+  e.stopPropagation();
   
-  if (!isPanning) {
+  // Shift+click to add to selection
+  if (e.shiftKey) {
+    toggleCardSelection(card);
+  } else if (!card.classList.contains('selected')) {
+    selectCard(card);
+  }
+  
+  if (!isPanning && selectedCards.length > 0) {
     isDragging = true;
-    card.classList.add('dragging');
     startX = e.clientX;
     startY = e.clientY;
-    cardStartX = parseInt(card.style.left) || 0;
-    cardStartY = parseInt(card.style.top) || 0;
-  }
-}
-
-function onCardDblClick(e) {
-  const editable = e.target.closest('[contenteditable]');
-  if (editable) {
-    editable.focus();
-    document.execCommand('selectAll', false, null);
+    dragStartPositions = selectedCards.map(c => ({
+      card: c,
+      x: parseInt(c.style.left) || 0,
+      y: parseInt(c.style.top) || 0
+    }));
+    selectedCards.forEach(c => c.classList.add('dragging'));
   }
 }
 
 function onCanvasMouseDown(e) {
-  if (e.target === canvas) {
+  contextMenu.style.display = 'none';
+  colorPicker.classList.remove('show');
+  
+  if (e.target === canvas || e.target === selectionBox) {
     if (isPanning) {
-      panStartX = e.clientX;
-      panStartY = e.clientY;
-      scrollStartX = window.scrollX;
-      scrollStartY = window.scrollY;
+      panStartX = e.clientX; panStartY = e.clientY;
+      scrollStartX = window.scrollX; scrollStartY = window.scrollY;
       document.body.style.cursor = 'grabbing';
     } else if (mode === 'card' || mode === 'sticky') {
       const rect = canvas.getBoundingClientRect();
@@ -518,39 +510,121 @@ function onCanvasMouseDown(e) {
       const card = createCard(x, y, mode);
       selectCard(card);
       setMode('select');
+    } else if (mode === 'select') {
+      // Start selection box
+      deselectAll();
+      isSelecting = true;
+      const rect = canvas.getBoundingClientRect();
+      selStartX = (e.clientX - rect.left + window.scrollX) / scale;
+      selStartY = (e.clientY - rect.top + window.scrollY) / scale;
+      selectionBox.style.left = selStartX + 'px';
+      selectionBox.style.top = selStartY + 'px';
+      selectionBox.style.width = '0';
+      selectionBox.style.height = '0';
+      selectionBox.style.display = 'block';
     }
   }
 }
 
-function onCanvasMouseMove(e) {
-  if (isDragging && selectedCard) {
+function onMouseMove(e) {
+  // Drag selected cards
+  if (isDragging && dragStartPositions.length > 0) {
     const dx = (e.clientX - startX) / scale;
     const dy = (e.clientY - startY) / scale;
-    selectedCard.style.left = (cardStartX + dx) + 'px';
-    selectedCard.style.top = (cardStartY + dy) + 'px';
+    dragStartPositions.forEach(pos => {
+      pos.card.style.left = (pos.x + dx) + 'px';
+      pos.card.style.top = (pos.y + dy) + 'px';
+    });
   }
   
+  // Pan
   if (isPanning && panStartX !== undefined) {
-    const dx = e.clientX - panStartX;
-    const dy = e.clientY - panStartY;
-    window.scrollTo(scrollStartX - dx, scrollStartY - dy);
+    window.scrollTo(scrollStartX - (e.clientX - panStartX), scrollStartY - (e.clientY - panStartY));
+  }
+  
+  // Selection box
+  if (isSelecting) {
+    const rect = canvas.getBoundingClientRect();
+    const curX = (e.clientX - rect.left + window.scrollX) / scale;
+    const curY = (e.clientY - rect.top + window.scrollY) / scale;
+    const x = Math.min(selStartX, curX);
+    const y = Math.min(selStartY, curY);
+    const w = Math.abs(curX - selStartX);
+    const h = Math.abs(curY - selStartY);
+    selectionBox.style.left = x + 'px';
+    selectionBox.style.top = y + 'px';
+    selectionBox.style.width = w + 'px';
+    selectionBox.style.height = h + 'px';
   }
 }
 
-function onCanvasMouseUp(e) {
-  if (isDragging && selectedCard) {
-    selectedCard.classList.remove('dragging');
+function onMouseUp(e) {
+  if (isDragging) {
+    selectedCards.forEach(c => c.classList.remove('dragging'));
+    isDragging = false;
+    dragStartPositions = [];
   }
-  isDragging = false;
+  
+  if (isSelecting) {
+    isSelecting = false;
+    const boxRect = {
+      left: parseInt(selectionBox.style.left),
+      top: parseInt(selectionBox.style.top),
+      right: parseInt(selectionBox.style.left) + parseInt(selectionBox.style.width),
+      bottom: parseInt(selectionBox.style.top) + parseInt(selectionBox.style.height)
+    };
+    selectionBox.style.display = 'none';
+    
+    // Select cards inside box
+    document.querySelectorAll('.card').forEach(card => {
+      const cx = parseInt(card.style.left) || 0;
+      const cy = parseInt(card.style.top) || 0;
+      const cw = card.offsetWidth;
+      const ch = card.offsetHeight;
+      if (cx < boxRect.right && cx + cw > boxRect.left && cy < boxRect.bottom && cy + ch > boxRect.top) {
+        card.classList.add('selected');
+        if (!selectedCards.includes(card)) selectedCards.push(card);
+      }
+    });
+  }
+  
   panStartX = undefined;
   if (isPanning) document.body.style.cursor = 'grab';
+}
+
+function onKeyDown(e) {
+  if (e.code === 'Space' && !e.target.isContentEditable) {
+    e.preventDefault(); isPanning = true; document.body.style.cursor = 'grab';
+  }
+  if (e.target.isContentEditable) return;
+  
+  switch(e.key) {
+    case 'v': case 'V': setMode('select'); break;
+    case 'c': case 'C': setMode('card'); break;
+    case 's': case 'S': 
+      if (e.metaKey || e.ctrlKey) { e.preventDefault(); saveToStorage(); }
+      else setMode('sticky');
+      break;
+    case 'd': case 'D':
+      if (e.metaKey || e.ctrlKey) { e.preventDefault(); duplicateSelected(); }
+      break;
+    case 'a': case 'A':
+      if (e.metaKey || e.ctrlKey) { e.preventDefault(); selectAll(); }
+      break;
+    case 'Delete': case 'Backspace': deleteSelected(); break;
+    case 'Escape': deselectAll(); setMode('select'); break;
+  }
+}
+
+function onKeyUp(e) {
+  if (e.code === 'Space') { isPanning = false; document.body.style.cursor = ''; }
 }
 
 function onContextMenu(e) {
   e.preventDefault();
   const card = e.target.closest('.card');
   if (card) {
-    selectCard(card);
+    if (!card.classList.contains('selected')) selectCard(card);
     contextMenu.style.display = 'block';
     contextMenu.style.left = e.clientX + 'px';
     contextMenu.style.top = e.clientY + 'px';
@@ -559,45 +633,61 @@ function onContextMenu(e) {
 
 function selectCard(card) {
   deselectAll();
-  selectedCard = card;
   card.classList.add('selected');
+  selectedCards = [card];
+}
+
+function toggleCardSelection(card) {
+  if (card.classList.contains('selected')) {
+    card.classList.remove('selected');
+    selectedCards = selectedCards.filter(c => c !== card);
+  } else {
+    card.classList.add('selected');
+    selectedCards.push(card);
+  }
+}
+
+function selectAll() {
+  deselectAll();
+  document.querySelectorAll('.card').forEach(card => {
+    card.classList.add('selected');
+    selectedCards.push(card);
+  });
 }
 
 function deselectAll() {
   document.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
-  selectedCard = null;
+  selectedCards = [];
 }
 
 function duplicateSelected() {
-  if (!selectedCard) return;
-  const rect = selectedCard.getBoundingClientRect();
-  const x = parseInt(selectedCard.style.left) + 30;
-  const y = parseInt(selectedCard.style.top) + 30;
-  
-  const newCard = createCard(x, y, selectedCard.classList.contains('sticky') ? 'sticky' : 'card', {
-    label: selectedCard.querySelector('.card-label')?.innerText,
-    title: selectedCard.querySelector('.card-title')?.innerText,
-    content: selectedCard.querySelector('.card-content')?.innerHTML,
-    color: getCardColor(selectedCard)
+  if (selectedCards.length === 0) return;
+  const newCards = [];
+  selectedCards.forEach(card => {
+    const x = parseInt(card.style.left) + 30;
+    const y = parseInt(card.style.top) + 30;
+    const newCard = createCard(x, y, card.classList.contains('sticky') ? 'sticky' : 'card', {
+      label: card.querySelector('.card-label')?.innerText,
+      title: card.querySelector('.card-title')?.innerText,
+      content: card.querySelector('.card-content')?.innerHTML,
+      color: getCardColor(card)
+    });
+    ['green', 'slate', 'lilac', 'coral', 'pink', 'blue', 'purple'].forEach(c => {
+      if (card.classList.contains(c)) newCard.classList.add(c);
+    });
+    newCards.push(newCard);
   });
-  
-  // Copy color class
-  ['green', 'slate', 'lilac', 'coral', 'pink', 'blue', 'purple'].forEach(c => {
-    if (selectedCard.classList.contains(c)) newCard.classList.add(c);
-  });
-  
-  selectCard(newCard);
+  deselectAll();
+  newCards.forEach(c => { c.classList.add('selected'); selectedCards.push(c); });
 }
 
 function deleteSelected() {
-  if (selectedCard) {
-    selectedCard.remove();
-    selectedCard = null;
-  }
+  selectedCards.forEach(card => card.remove());
+  selectedCards = [];
 }
 
 function toggleColorPicker(e) {
-  if (!selectedCard) return;
+  if (selectedCards.length === 0) return;
   colorPicker.classList.toggle('show');
   const rect = e.target.getBoundingClientRect();
   colorPicker.style.left = rect.left + 'px';
@@ -605,28 +695,20 @@ function toggleColorPicker(e) {
 }
 
 function applyColor(color) {
-  if (!selectedCard) return;
-  
-  // Remove existing colors
-  ['green', 'slate', 'lilac', 'coral', 'pink', 'blue', 'purple', 'green-light'].forEach(c => {
-    selectedCard.classList.remove(c);
-  });
-  
-  // Handle sticky vs card colors
-  if (selectedCard.classList.contains('sticky')) {
-    if (color === 'yellow') selectedCard.style.background = '#FEF3C7';
-    else if (color === 'pink') selectedCard.classList.add('pink');
-    else if (color === 'blue') selectedCard.classList.add('blue');
-    else if (color === 'green-light') selectedCard.classList.add('green');
-    else if (color === 'purple') selectedCard.classList.add('purple');
-    else if (color === 'white') selectedCard.style.background = 'white';
-  } else {
-    if (color === 'white') selectedCard.style.background = 'white';
-    else if (['green', 'slate', 'lilac', 'coral'].includes(color)) {
-      selectedCard.classList.add(color);
+  selectedCards.forEach(card => {
+    ['green', 'slate', 'lilac', 'coral', 'pink', 'blue', 'purple', 'green-light'].forEach(c => card.classList.remove(c));
+    if (card.classList.contains('sticky')) {
+      if (color === 'yellow') card.style.background = '#FEF3C7';
+      else if (color === 'pink') card.classList.add('pink');
+      else if (color === 'blue') card.classList.add('blue');
+      else if (color === 'green-light') card.classList.add('green');
+      else if (color === 'purple') card.classList.add('purple');
+      else if (color === 'white') card.style.background = 'white';
+    } else {
+      if (color === 'white') card.style.background = 'white';
+      else if (['green', 'slate', 'lilac', 'coral'].includes(color)) card.classList.add(color);
     }
-  }
-  
+  });
   colorPicker.classList.remove('show');
 }
 
@@ -642,31 +724,8 @@ function handleContextAction(action) {
     case 'duplicate': duplicateSelected(); break;
     case 'delete': deleteSelected(); break;
     case 'color': toggleColorPicker({target: document.getElementById('btn-color')}); break;
-    case 'front': if (selectedCard) selectedCard.style.zIndex = 100; break;
-    case 'back': if (selectedCard) selectedCard.style.zIndex = 1; break;
-  }
-}
-
-function onKeyDown(e) {
-  if (e.target.isContentEditable) return;
-  
-  switch(e.key) {
-    case 'v': case 'V': setMode('select'); break;
-    case 'c': case 'C': setMode('card'); break;
-    case 's': case 'S': 
-      if (e.metaKey || e.ctrlKey) { e.preventDefault(); saveToStorage(); }
-      else setMode('sticky');
-      break;
-    case 'd': case 'D':
-      if (e.metaKey || e.ctrlKey) { e.preventDefault(); duplicateSelected(); }
-      break;
-    case 'Delete': case 'Backspace':
-      if (!e.target.isContentEditable) deleteSelected();
-      break;
-    case 'Escape':
-      deselectAll();
-      setMode('select');
-      break;
+    case 'front': selectedCards.forEach(c => c.style.zIndex = 100); break;
+    case 'back': selectedCards.forEach(c => c.style.zIndex = 1); break;
   }
 }
 
@@ -674,66 +733,42 @@ function saveToStorage() {
   const cards = [];
   document.querySelectorAll('.card').forEach(card => {
     cards.push({
-      x: parseInt(card.style.left),
-      y: parseInt(card.style.top),
-      width: card.offsetWidth,
-      type: card.classList.contains('sticky') ? 'sticky' : 'card',
-      color: getCardColor(card),
+      x: parseInt(card.style.left), y: parseInt(card.style.top), width: card.offsetWidth,
+      type: card.classList.contains('sticky') ? 'sticky' : 'card', color: getCardColor(card),
       label: card.querySelector('.card-label')?.innerText || '',
       title: card.querySelector('.card-title')?.innerText || '',
       content: card.querySelector('.card-content')?.innerHTML || '',
       zIndex: card.style.zIndex || 1
     });
   });
-  
   localStorage.setItem('tend-board', JSON.stringify(cards));
   alert('Saved! (' + cards.length + ' cards)');
 }
 
 function loadFromStorage() {
   const data = localStorage.getItem('tend-board');
-  if (!data) {
-    // Load default content
-    loadDefaultContent();
-    return;
-  }
-  
+  if (!data) { loadDefaultContent(); return; }
   try {
     const cards = JSON.parse(data);
-    canvas.innerHTML = '';
-    cards.forEach(c => {
-      const card = createCard(c.x, c.y, c.type, c);
-      if (c.zIndex) card.style.zIndex = c.zIndex;
-    });
-  } catch(e) {
-    console.error('Failed to load:', e);
-  }
+    document.querySelectorAll('.card').forEach(c => c.remove());
+    cards.forEach(c => { const card = createCard(c.x, c.y, c.type, c); if (c.zIndex) card.style.zIndex = c.zIndex; });
+  } catch(e) { console.error('Failed to load:', e); }
 }
 
 function loadDefaultContent() {
-  // Core section
   createCard(80, 100, 'card', { color: 'slate', label: 'TEND', title: 'What We Are', content: 'Managed AI operators for business workflows. We install AI that runs your operations — and we manage it for you.' });
   createCard(420, 100, 'card', { label: 'PROBLEM', title: 'Why Businesses Need Us', content: '• 3+ hours/day on email, scheduling<br>• Leads going cold<br>• Can\'t afford more staff<br>• Tried AI tools — didn\'t stick' });
-  
-  // Pricing
   createCard(80, 340, 'card', { color: 'green', label: 'PRICING', title: 'Deal Structure', content: '<strong>$11K</strong> minimum<br><br>• $5,000 setup<br>• $2,000/month<br>• 3-month minimum' });
   createCard(420, 340, 'card', { label: 'TARGET', title: 'Ideal Customer', content: '• $5M–$100M revenue<br>• Founder or Head of Ops<br>• Clear operational pain<br>• $11K isn\'t a big decision' });
-  
-  // Industries
   createCard(760, 100, 'sticky', { label: '🦷', title: 'Dental', content: 'Confirmations, no-shows, new patient follow-up' });
   createCard(980, 100, 'sticky', { color: 'pink', label: '🏠', title: 'Real Estate', content: 'Lead response time, qualification' });
   createCard(760, 280, 'sticky', { color: 'blue', label: '🔧', title: 'HVAC/Trades', content: 'Missed calls, dispatch, scheduling' });
   createCard(980, 280, 'sticky', { color: 'purple', label: '⚖️', title: 'Legal', content: 'Intake automation, follow-ups' });
-  
-  // Scripts
   createCard(80, 580, 'card', { color: 'lilac', label: 'PITCH', title: '30-Second Pitch', content: '"Most businesses know AI can help, but don\'t have time to figure it out. Tend is different. We identify your highest-value workflow and build a real AI system. $5K to set up, $2K/month. ROI in 30 days."' });
-  
-  // Objections
   createCard(500, 580, 'card', { color: 'coral', label: 'OBJECTION', title: '"Why not ChatGPT?"', content: 'ChatGPT doesn\'t connect to your CRM, respond at 2am, or know your escalation rules. We build the system that does.' });
   createCard(840, 580, 'card', { color: 'coral', label: 'OBJECTION', title: '"Too expensive"', content: 'A full-time admin is $40K+ with benefits. Tend is $24K/year, works 24/7, never misses a lead.' });
 }
 
-// Init
 init();
 </script>
 
