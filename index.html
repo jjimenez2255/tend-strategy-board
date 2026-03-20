@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tend — Internal Strategy Board</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #F5F5F0;
+  --dot: rgba(74,92,107,0.15);
+  --surface: #FFFFFF;
+  --slate: #4A5C6B;
+  --green: #5B8A6C;
+  --lilac: #8B7AA8;
+  --coral: #C17767;
+  --text: #1A1A1A;
+  --text-muted: #7A8A9A;
+  --border: rgba(0,0,0,0.08);
+  --connector: #4A5C6B;
+}
+
+html, body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  background-image: radial-gradient(var(--dot) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--text);
+  overflow: auto;
+  cursor: grab;
+}
+
+body:active { cursor: grabbing; }
+
+.canvas {
+  width: 4000px;
+  height: 3000px;
+  position: relative;
+  padding: 80px;
+}
+
+/* Cards */
+.card {
+  position: absolute;
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border: 1px solid var(--border);
+  max-width: 320px;
+}
+
+.card-sm { max-width: 240px; padding: 16px; }
+.card-lg { max-width: 400px; }
+.card-xl { max-width: 500px; }
+
+.card-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.card-label.green { color: var(--green); }
+.card-label.lilac { color: var(--lilac); }
+.card-label.slate { color: var(--slate); }
+.card-label.coral { color: var(--coral); }
+
+.card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  letter-spacing: -0.2px;
+}
+
+.card h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.card p {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.card ul {
+  list-style: none;
+  margin-top: 12px;
+}
+
+.card li {
+  font-size: 13px;
+  color: var(--slate);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.card li:last-child { border-bottom: none; }
+
+.card blockquote {
+  font-size: 14px;
+  font-style: italic;
+  color: var(--text);
+  padding: 16px;
+  background: rgba(91,138,108,0.06);
+  border-left: 3px solid var(--green);
+  border-radius: 0 6px 6px 0;
+  margin-top: 12px;
+}
+
+.metric {
+  font-size: 36px;
+  font-weight: 300;
+  letter-spacing: -1px;
+}
+
+.metric-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Colored cards */
+.card.highlight-green {
+  background: var(--green);
+  border: none;
+}
+.card.highlight-green * { color: white; }
+.card.highlight-green .card-label { color: rgba(255,255,255,0.7); }
+
+.card.highlight-slate {
+  background: var(--slate);
+  border: none;
+}
+.card.highlight-slate * { color: white; }
+.card.highlight-slate .card-label { color: rgba(255,255,255,0.7); }
+
+.card.highlight-lilac {
+  background: var(--lilac);
+  border: none;
+}
+.card.highlight-lilac * { color: white; }
+.card.highlight-lilac .card-label { color: rgba(255,255,255,0.7); }
+
+.card.highlight-coral {
+  background: var(--coral);
+  border: none;
+}
+.card.highlight-coral * { color: white; }
+.card.highlight-coral .card-label { color: rgba(255,255,255,0.7); }
+
+/* Section headers */
+.section-label {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--slate);
+  opacity: 0.5;
+}
+
+/* Connectors */
+svg.connectors {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+svg.connectors path {
+  fill: none;
+  stroke: var(--connector);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  opacity: 0.3;
+}
+
+svg.connectors path.solid {
+  stroke-dasharray: none;
+  opacity: 0.4;
+}
+
+/* Mini nav */
+.nav {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  display: flex;
+  gap: 12px;
+  z-index: 100;
+}
+
+.nav a {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--slate);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.nav a:hover {
+  background: var(--bg);
+}
+
+/* Script boxes */
+.script-box {
+  background: #1A1A1A;
+  color: #F0F0F0;
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.objection {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.objection-q {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--coral);
+  margin-bottom: 8px;
+}
+
+.objection-a {
+  font-size: 13px;
+  color: var(--slate);
+  line-height: 1.6;
+}
+
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="canvas">
+
+<!-- CONNECTORS -->
+<svg class="connectors">
+  <!-- Core to Sales -->
+  <path d="M 400 200 Q 500 200 520 300" class="solid"/>
+  <!-- Sales to Industries -->
+  <path d="M 700 400 Q 800 400 900 350"/>
+  <path d="M 700 450 Q 800 450 900 550"/>
+  <path d="M 700 500 Q 800 550 900 750"/>
+  <!-- Journey flow -->
+  <path d="M 250 900 L 450 900" class="solid"/>
+  <path d="M 550 900 L 750 900" class="solid"/>
+  <path d="M 850 900 L 1050 900" class="solid"/>
+  <path d="M 1150 900 L 1350 900" class="solid"/>
+  <path d="M 1450 900 L 1650 900" class="solid"/>
+</svg>
+
+<!-- ======================== -->
+<!-- SECTION: CORE -->
+<!-- ======================== -->
+<div class="section-label" style="top: 60px; left: 80px;">Core</div>
+
+<div class="card highlight-slate" style="top: 100px; left: 80px; max-width: 280px;">
+  <div class="card-label">Tend</div>
+  <h2>What We Are</h2>
+  <p>Managed AI operators for business workflows. We install AI that runs your operations — and we manage it for you.</p>
+</div>
+
+<div class="card" style="top: 320px; left: 80px;">
+  <div class="card-label green">Position</div>
+  <h3>The Middle Ground</h3>
+  <p>More operational than chatbot shops. More accessible than enterprise AI firms. Managed, not abandoned.</p>
+</div>
+
+<div class="card" style="top: 100px; left: 400px;">
+  <div class="card-label slate">Problem</div>
+  <h3>Why Businesses Need Us</h3>
+  <ul>
+    <li>3+ hours/day on email, scheduling, follow-ups</li>
+    <li>Leads going cold — slow response</li>
+    <li>Can't afford or trust more staff</li>
+    <li>Tried AI tools — didn't stick</li>
+  </ul>
+</div>
+
+<div class="card" style="top: 320px; left: 400px;">
+  <div class="card-label lilac">Insight</div>
+  <h3>The Real Gap</h3>
+  <p>It's not technology. It's implementation. Businesses don't need another tool — they need someone to make AI work inside their operations.</p>
+</div>
+
+
+<!-- ======================== -->
+<!-- SECTION: SALES STRUCTURE -->
+<!-- ======================== -->
+<div class="section-label" style="top: 60px; left: 800px;">Sales</div>
+
+<div class="card highlight-green" style="top: 100px; left: 800px;">
+  <div class="card-label">Pricing</div>
+  <h2>Deal Structure</h2>
+  <div class="metric" style="margin-top: 16px;">$11K</div>
+  <div class="metric-label">Minimum Deal Value</div>
+  <ul style="margin-top: 20px;">
+    <li style="color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.2);">$5,000 setup fee</li>
+    <li style="color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.2);">$2,000/month retainer</li>
+    <li style="color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.2);">3-month minimum</li>
+    <li style="color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.2);">Day 1 payment: $7,000</li>
+  </ul>
+</div>
+
+<div class="card" style="top: 100px; left: 1140px;">
+  <div class="card-label coral">Target</div>
+  <h3>Ideal Customer</h3>
+  <ul>
+    <li>$5M–$100M revenue</li>
+    <li>Founder, owner, or Head of Ops</li>
+    <li>Clear operational pain</li>
+    <li>$11K isn't a big decision for them</li>
+    <li>Already tried some automation</li>
+  </ul>
+</div>
+
+<div class="card" style="top: 380px; left: 800px;">
+  <div class="card-label slate">MOAT</div>
+  <h3>Why This Matters to Kyros</h3>
+  <p>Tend is the wedge. $11K entry → trust earned → $50K–$500K+ enterprise consulting.</p>
+</div>
+
+
+<!-- ======================== -->
+<!-- SECTION: INDUSTRY PLAYBOOKS -->
+<!-- ======================== -->
+<div class="section-label" style="top: 60px; left: 1500px;">Industry Playbooks</div>
+
+<!-- DENTAL -->
+<div class="card card-lg" style="top: 100px; left: 1500px;" id="dental">
+  <div class="card-label green">🦷 Dental</div>
+  <h3>Selling to Dental Offices</h3>
+  <p>They're drowning in confirmations, no-shows, and new patient follow-up.</p>
+  
+  <div class="script-box">
+    <strong>Opening:</strong><br>
+    "How many hours a day does your front desk spend on confirmation calls and rescheduling?"<br><br>
+    <strong>The pitch:</strong><br>
+    "We can cut that to near-zero. Our AI handles confirmations, responds to new patient inquiries in under 60 seconds, and fills cancelled slots automatically. You keep your team focused on patient experience."
+  </div>
+  
+  <div class="objection">
+    <div class="objection-q">"What about HIPAA?"</div>
+    <div class="objection-a">Everything is HIPAA-aware. We don't store PHI outside your systems. All communications log to your practice management software. We can walk through controls with your compliance officer.</div>
+  </div>
+  
+  <div class="objection">
+    <div class="objection-q">"Patient trust is everything."</div>
+    <div class="objection-a">We're not automating care — we're automating the 47 reminder calls your front desk makes daily. Your team does the care, we handle coordination.</div>
+  </div>
+</div>
+
+<!-- REAL ESTATE -->
+<div class="card card-lg" style="top: 480px; left: 1500px;" id="real-estate">
+  <div class="card-label lilac">🏠 Real Estate</div>
+  <h3>Selling to Realtors/Teams</h3>
+  <p>Lead response time is everything. They're at showings while leads go cold.</p>
+  
+  <div class="script-box">
+    <strong>Opening:</strong><br>
+    "When a new lead comes in from Zillow at 2pm and you're at a showing — how long until they hear from someone?"<br><br>
+    <strong>The pitch:</strong><br>
+    "We make that 60 seconds. Our AI responds instantly, qualifies interest, and books the call with you. By the time you're free, they're warm and scheduled."
+  </div>
+  
+  <div class="objection">
+    <div class="objection-q">"My leads need a personal touch."</div>
+    <div class="objection-a">Absolutely — that's you. We just make sure you get the chance. Right now leads are contacting 3-4 agents. The fastest, most helpful response wins. We make sure that's you.</div>
+  </div>
+  
+  <div class="objection">
+    <div class="objection-q">"I already have a CRM that sends follow-ups."</div>
+    <div class="objection-a">CRMs send drip emails. Ours reads responses, answers questions, and knows when to escalate. It's a conversation, not a campaign.</div>
+  </div>
+</div>
+
+<!-- HVAC / TRADES -->
+<div class="card card-lg" style="top: 880px; left: 1500px;" id="hvac">
+  <div class="card-label coral">🔧 HVAC / Trades</div>
+  <h3>Selling to Trade Companies</h3>
+  <p>Missed calls = lost jobs. They're on ladders while the phone rings.</p>
+  
+  <div class="script-box">
+    <strong>Opening:</strong><br>
+    "How many calls go to voicemail when your team is on a job?"<br><br>
+    <strong>The pitch:</strong><br>
+    "Every missed call is a lost job. We answer every call, qualify urgency, book the appointment, and dispatch to your team. No more 'sorry we missed you' — just booked revenue."
+  </div>
+  
+  <div class="objection">
+    <div class="objection-q">"Our customers want to talk to a real person."</div>
+    <div class="objection-a">They want their problem solved. Fast. The AI books them same-day if it's urgent, or schedules for when it makes sense. Then your tech calls to confirm. Personal touch where it counts.</div>
+  </div>
+</div>
+
+<!-- LEGAL -->
+<div class="card card-lg" style="top: 1220px; left: 1500px;" id="legal">
+  <div class="card-label slate">⚖️ Legal / Professional</div>
+  <h3>Selling to Law Firms</h3>
+  <p>Intake is slow. Follow-up falls through cracks. Billable time goes to admin.</p>
+  
+  <div class="script-box">
+    <strong>Opening:</strong><br>
+    "How much of your team's time goes to intake calls and follow-up emails instead of billable work?"<br><br>
+    <strong>The pitch:</strong><br>
+    "We automate the front door. New inquiries get qualified, consultations get scheduled, and follow-ups happen automatically. Your attorneys stay in court, not on the phone."
+  </div>
+  
+  <div class="objection">
+    <div class="objection-q">"We have strict confidentiality requirements."</div>
+    <div class="objection-a">Everything is scoped access, logged, and auditable. We don't store client data outside your systems. Your compliance team will appreciate the paper trail — it's better documented than manual processes.</div>
+  </div>
+</div>
+
+
+<!-- ======================== -->
+<!-- SECTION: UNIVERSAL SCRIPTS -->
+<!-- ======================== -->
+<div class="section-label" style="top: 500px; left: 80px;">Scripts</div>
+
+<div class="card card-xl" style="top: 540px; left: 80px;">
+  <div class="card-label green">30-Second Pitch</div>
+  <h3>The Universal Pitch</h3>
+  <div class="script-box">
+    "Most businesses know AI can help, but they don't have time to figure it out — and they've been burned by tools that don't actually do anything.<br><br>
+    Tend is different. We come in, identify your highest-value workflow — usually lead response, scheduling, or follow-ups — and we build a real AI system that handles it. Not a chatbot. An actual operator that connects to your email, calendar, CRM, whatever you use.<br><br>
+    We set it up, we run it, we fix it when it breaks. You just see the results.<br><br>
+    It's $5K to set up, $2K/month to run. Most clients see ROI in the first 30 days."
+  </div>
+</div>
+
+<div class="card card-lg" style="top: 540px; left: 620px;">
+  <div class="card-label lilac">Opener</div>
+  <h3>Discovery Questions</h3>
+  <ul>
+    <li>"Walk me through what happens when a new lead comes in."</li>
+    <li>"How long until they hear from someone?"</li>
+    <li>"What's falling through the cracks right now?"</li>
+    <li>"What's your team spending too much time on?"</li>
+    <li>"Have you tried automation before? What didn't work?"</li>
+  </ul>
+</div>
+
+<div class="card card-lg" style="top: 820px; left: 80px;">
+  <div class="card-label coral">Trial Close</div>
+  <h3>Moving to Action</h3>
+  <div class="script-box">
+    "Based on what you've told me, it sounds like [lead response / scheduling / follow-up] is costing you the most time. If we could get that running automatically in the next 2 weeks, what would that free you up to do?"
+  </div>
+</div>
+
+<div class="card" style="top: 820px; left: 520px;">
+  <div class="card-label slate">Next Step</div>
+  <h3>Booking the Call</h3>
+  <div class="script-box">
+    "Here's what I'd suggest: Let's book a 15-minute discovery call. I'll ask a few questions about your workflow, and we'll see if there's a fit. If there is, we can have you live within 2 weeks."
+  </div>
+</div>
+
+<div class="card" style="top: 1020px; left: 80px;">
+  <div class="card-label">Light Urgency</div>
+  <h3>Creating Momentum</h3>
+  <div class="script-box">
+    "We're only taking on a handful of new clients this month — we want to make sure everyone gets full attention during onboarding. If the timing works, let's lock in a slot."
+  </div>
+</div>
+
+
+<!-- ======================== -->
+<!-- SECTION: OBJECTION BANK -->
+<!-- ======================== -->
+<div class="section-label" style="top: 500px; left: 900px;">Objections</div>
+
+<div class="card" style="top: 540px; left: 900px;">
+  <div class="card-label coral">Objection</div>
+  <div class="objection-q">"Why can't I just use ChatGPT?"</div>
+  <div class="objection-a">You can. But having a tool isn't the same as having a system. ChatGPT doesn't connect to your CRM, respond to leads at 2am, or know your escalation rules. We build the system that does.</div>
+</div>
+
+<div class="card" style="top: 720px; left: 900px;">
+  <div class="card-label coral">Objection</div>
+  <div class="objection-q">"This seems expensive."</div>
+  <div class="objection-a">Compare it to hiring. A full-time admin is $40K+ with benefits, 40 hours/week, calls in sick. Tend is $24K/year, works 24/7, never misses a lead. The math works.</div>
+</div>
+
+<div class="card" style="top: 900px; left: 900px;">
+  <div class="card-label coral">Objection</div>
+  <div class="objection-q">"What if it makes mistakes?"</div>
+  <div class="objection-a">It will, at first. That's why we have human-in-the-loop checkpoints for anything high-stakes. We monitor and tune constantly. Mistakes get caught fast.</div>
+</div>
+
+<div class="card" style="top: 1080px; left: 900px;">
+  <div class="card-label coral">Objection</div>
+  <div class="objection-q">"I've tried AI tools before."</div>
+  <div class="objection-a">Most AI tools are self-serve — you're on your own. We're the opposite. We build it, run it, fix it. You just see results.</div>
+</div>
+
+<div class="card" style="top: 1250px; left: 900px;">
+  <div class="card-label coral">Objection</div>
+  <div class="objection-q">"Is my data safe?"</div>
+  <div class="objection-a">Scoped permissions — the AI only touches what it needs. We don't train on your data. Actions are logged and auditable. You own everything.</div>
+</div>
+
+
+<!-- ======================== -->
+<!-- SECTION: CUSTOMER JOURNEY -->
+<!-- ======================== -->
+<div class="section-label" style="top: 1400px; left: 80px;">Journey</div>
+
+<div class="card card-sm highlight-slate" style="top: 1450px; left: 80px; text-align: center;">
+  <div class="card-label">01</div>
+  <h3>See Ad</h3>
+  <p>Google, Meta, Billboard</p>
+</div>
+
+<div class="card card-sm" style="top: 1450px; left: 350px; text-align: center;">
+  <div class="card-label green">02</div>
+  <h3>Visit Site</h3>
+  <p>withtend.ai</p>
+</div>
+
+<div class="card card-sm" style="top: 1450px; left: 620px; text-align: center;">
+  <div class="card-label lilac">03</div>
+  <h3>Book Call</h3>
+  <p>Cal.com intake</p>
+</div>
+
+<div class="card card-sm" style="top: 1450px; left: 890px; text-align: center;">
+  <div class="card-label coral">04</div>
+  <h3>Discovery</h3>
+  <p>15-min call</p>
+</div>
+
+<div class="card card-sm" style="top: 1450px; left: 1160px; text-align: center;">
+  <div class="card-label slate">05</div>
+  <h3>Proposal</h3>
+  <p>$7K day one</p>
+</div>
+
+<div class="card card-sm highlight-green" style="top: 1450px; left: 1430px; text-align: center;">
+  <div class="card-label">06</div>
+  <h3>Deploy</h3>
+  <p>2 weeks live</p>
+</div>
+
+<div class="card card-sm" style="top: 1450px; left: 1700px; text-align: center;">
+  <div class="card-label lilac">07</div>
+  <h3>Expand</h3>
+  <p>→ Kyros consulting</p>
+</div>
+
+
+<!-- ======================== -->
+<!-- SECTION: EXECUTION -->
+<!-- ======================== -->
+<div class="section-label" style="top: 1650px; left: 80px;">Execution</div>
+
+<div class="card" style="top: 1700px; left: 80px;">
+  <div class="card-label green">Delivery</div>
+  <h3>Our Process</h3>
+  <ul>
+    <li><strong>01 Discovery</strong> — Find the workflow</li>
+    <li><strong>02 Design</strong> — Map permissions & rules</li>
+    <li><strong>03 Deploy</strong> — Build & launch</li>
+    <li><strong>04 Run</strong> — Monitor & tune</li>
+    <li><strong>05 Expand</strong> — Add more agents</li>
+  </ul>
+</div>
+
+<div class="card" style="top: 1700px; left: 400px;">
+  <div class="card-label slate">Timeline</div>
+  <h3>Speed</h3>
+  <div class="metric">2 weeks</div>
+  <div class="metric-label">Discovery to Live</div>
+  <p style="margin-top: 12px;">First month is calibration. Stable by month 1 end.</p>
+</div>
+
+<div class="card" style="top: 1700px; left: 700px;">
+  <div class="card-label lilac">Controls</div>
+  <h3>Trust Framework</h3>
+  <ul>
+    <li>Scoped permissions</li>
+    <li>Approval gates</li>
+    <li>Human-in-the-loop</li>
+    <li>Full audit logs</li>
+    <li>Managed deployment</li>
+  </ul>
+</div>
+
+<div class="card" style="top: 1700px; left: 1020px;">
+  <div class="card-label coral">Use Cases</div>
+  <h3>Entry Workflows</h3>
+  <ul>
+    <li>Lead qualification & response</li>
+    <li>Meeting prep & follow-up</li>
+    <li>Support triage</li>
+    <li>CRM automation</li>
+    <li>Internal ops</li>
+  </ul>
+</div>
+
+
+<!-- ======================== -->
+<!-- SECTION: GTM -->
+<!-- ======================== -->
+<div class="section-label" style="top: 2000px; left: 80px;">GTM</div>
+
+<div class="card highlight-lilac" style="top: 2050px; left: 80px;">
+  <div class="card-label">Budget</div>
+  <h3>Scaling Plan</h3>
+  <div class="metric">$5K/day</div>
+  <div class="metric-label">By Month 3</div>
+  <ul style="margin-top: 16px;">
+    <li style="color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.2);">Week 1-2 → $500/day</li>
+    <li style="color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.2);">Week 3-4 → $1,500/day</li>
+    <li style="color: rgba(255,255,255,0.8); border-color: rgba(255,255,255,0.2);">Month 2 → $3,000/day</li>
+  </ul>
+</div>
+
+<div class="card" style="top: 2050px; left: 400px;">
+  <div class="card-label green">Channels</div>
+  <h3>Mix</h3>
+  <ul>
+    <li>Google Ads — 40%</li>
+    <li>Meta — 30%</li>
+    <li>LinkedIn — 20%</li>
+    <li>YouTube — 10%</li>
+  </ul>
+</div>
+
+<div class="card" style="top: 2050px; left: 680px;">
+  <div class="card-label coral">Local</div>
+  <h3>DFW Billboards</h3>
+  <p>I-35E, I-635, US-75, DFW Airport corridor.<br><br>250K+ daily impressions.</p>
+</div>
+
+<div class="card" style="top: 2050px; left: 960px;">
+  <div class="card-label slate">Events</div>
+  <h3>Meetups</h3>
+  <ul>
+    <li>Dallas Entrepreneurs</li>
+    <li>Plano Chamber</li>
+    <li>DFW Tech Happy Hours</li>
+  </ul>
+</div>
+
+
+<!-- ======================== -->
+<!-- SECTION: CURRENT STATUS -->
+<!-- ======================== -->
+<div class="section-label" style="top: 2000px; left: 1300px;">Status</div>
+
+<div class="card" style="top: 2050px; left: 1300px;">
+  <div class="card-label green">Live Now</div>
+  <h3>What's Running</h3>
+  <ul>
+    <li>✓ withtend.ai</li>
+    <li>✓ Google Ads</li>
+    <li>✓ Cal.com booking</li>
+    <li>✓ Clarity analytics</li>
+    <li>✓ Team dashboard</li>
+  </ul>
+</div>
+
+<div class="card" style="top: 2050px; left: 1580px;">
+  <div class="card-label coral">Gap</div>
+  <h3>Conversion Issue</h3>
+  <p>9.6% click booking link but 0% complete.</p>
+  <p style="margin-top: 8px;"><strong>Fix:</strong> Cal.com friction? Trust gap? Landing page clarity?</p>
+</div>
+
+<div class="card" style="top: 2280px; left: 1300px;">
+  <div class="card-label slate">Team</div>
+  <h3>Who's On This</h3>
+  <ul>
+    <li>Thomas — Lead</li>
+    <li>jj — Marketing & GTM</li>
+    <li>Jakeh — Product & UX</li>
+    <li>Will — Support</li>
+  </ul>
+</div>
+
+<div class="card" style="top: 2280px; left: 1580px;">
+  <div class="card-label lilac">Next</div>
+  <h3>This Week</h3>
+  <ul>
+    <li>Fix booking conversion</li>
+    <li>Launch Meta ads</li>
+    <li>Finalize headline</li>
+    <li>First billboard design</li>
+  </ul>
+</div>
+
+</div>
+
+<!-- Navigation -->
+<nav class="nav">
+  <a href="#" onclick="scrollTo(80, 100)">Core</a>
+  <a href="#" onclick="scrollTo(800, 100)">Sales</a>
+  <a href="#" onclick="scrollTo(1500, 100)">Industries</a>
+  <a href="#" onclick="scrollTo(80, 540)">Scripts</a>
+  <a href="#" onclick="scrollTo(900, 540)">Objections</a>
+  <a href="#" onclick="scrollTo(80, 1400)">Journey</a>
+  <a href="#" onclick="scrollTo(80, 2000)">GTM</a>
+</nav>
+
+<script>
+function scrollTo(x, y) {
+  window.scrollTo({ left: x - 40, top: y - 40, behavior: 'smooth' });
+}
+
+// Start at top-left
+window.scrollTo(0, 0);
+</script>
+
+</body>
+</html>
